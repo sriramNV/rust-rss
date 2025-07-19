@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 
 use eframe::egui::{self, CentralPanel, ComboBox, Context, FontFamily, FontId, ScrollArea, TextStyle, TopBottomPanel};
 use rss::Channel;
@@ -124,7 +126,6 @@ fn show_top_bar(ctx: &Context) {
 
 
 fn main()  -> Result<(), eframe::Error> {
-    println!("Hello, world!");
     let options = eframe::NativeOptions{
         viewport: eframe::egui::ViewportBuilder::default().with_resizable(true).with_inner_size([320.0,240.0]),
         ..Default::default()
