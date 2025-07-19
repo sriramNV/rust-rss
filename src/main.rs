@@ -1,10 +1,14 @@
-use eframe::egui::{self, CentralPanel, Context, FontFamily, FontId, TextStyle, TopBottomPanel};
+
+use eframe::egui::{self, CentralPanel, ComboBox, Context, FontFamily, FontId, ScrollArea, TextStyle, TopBottomPanel};
+use rss::Channel;
 
 #[derive(Default)]
 struct App{
     subs:Vec<(String, String)>,
     name_input: String,
     url_input: String,
+    selected_value: Option<usize>,
+    channel: Option<Channel>
 }
 
 impl eframe::App for App{
@@ -16,7 +20,34 @@ impl eframe::App for App{
         set_styles(ctx);
         show_top_bar(ctx);     
         CentralPanel::default().show(ctx, |ui|{
-            ui.collapsing("New RSS", |ui|{
+            self.show_rss_form(ui);
+            ui.separator();
+            self.show_combo_box(ui);
+            if let Some(channel) = &self.channel {
+                ui.separator();
+                ui.heading(channel.title());
+                ui.label(channel.description());
+                ui.separator();
+                ScrollArea::vertical().show(ui, |ui|{
+                    for item in channel.items() {
+                        ui.heading(item.title().unwrap_or("No Title"));
+                        if let Some(pat) = &item.link(){
+                            let _ = ui.link(*pat);
+                        }
+                        ui.label(item.description().unwrap_or("No Description"));
+                        ui.separator();
+                    }
+                });
+
+            }
+        });
+        
+    }
+}
+
+impl App{
+    fn show_rss_form(&mut self, ui: &mut egui::Ui) {
+        ui.collapsing("New RSS", |ui|{
                 ui.vertical_centered_justified(|ui|{
                     ui.label("Name");
                     ui.text_edit_singleline(&mut self.name_input);
@@ -38,26 +69,57 @@ impl eframe::App for App{
                     });
                 });
             });
+    }
 
-            for sub in &self.subs{
-                ui.heading(&sub.0);
-                ui.heading(&sub.1);
-            }
-        });
-        
+    fn show_combo_box(&mut self, ui: &mut egui::Ui) {
+        ComboBox::from_label("Selected Res")
+                .selected_text(if let Some(index) = self.selected_value{
+                    "Select me";
+                        if let Some(sub) = self.subs.get(index){
+                            &sub.0
+                        } else {
+                            "Select me"
+                        }
+                } else{
+                    "Select me"
+                },
+            ).show_ui(ui, |ui|{
+                for (i, rss) in self.subs.iter().enumerate(){
+                    if ui.selectable_value(&mut self.selected_value,
+                        Some(i), &rss.0,).clicked(){
+                            if let Some(sub) = self.subs.get(i){
+                                match get_feed(&sub.1){
+                                    Ok(channel) => self.channel = Some(channel),
+                                    Err(e) => print!(" {}", e.to_string())
+                                }
+                            }
+                        }
+                }
+            });
     }
 }
 
 fn show_top_bar(ctx: &Context) {
-    TopBottomPanel::top("menu_bar").show(ctx, |ui|{
-                egui::menu::bar(ui, |ui|{
+    // TopBottomPanel::top("menu_bar").show(ctx, |ui|{
+    //             egui::menu::bar(ui, |ui|{
+    //                 ui.menu_button("File", |ui|{
+    //                     if ui.button("Exit").clicked(){
+    //                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+    //                     }
+    //                 });
+    //             });
+    //         }); 
+
+     TopBottomPanel::top("menu_bar").show(ctx, |ui|{
+                egui::MenuBar::new().ui(ui, |ui|{
                     ui.menu_button("File", |ui|{
                         if ui.button("Exit").clicked(){
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                     });
                 });
-            }); 
+            });
+    
 }
 
 
@@ -80,4 +142,10 @@ fn set_styles(ctx: &Context) {
     ].into();
 
     ctx.set_style(style)
+}
+
+fn get_feed(url:&str) -> Result<Channel, Box<dyn std::error::Error>> {
+    let content = reqwest::blocking::get(url)?.bytes()?;
+    let channel = Channel::read_from(&content[..])?;
+    Ok(channel)
 }
