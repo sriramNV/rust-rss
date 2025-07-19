@@ -1,7 +1,11 @@
 use eframe::egui::{self, CentralPanel, Context, FontFamily, FontId, TextStyle, TopBottomPanel};
 
 #[derive(Default)]
-struct App{}
+struct App{
+    subs:Vec<(String, String)>,
+    name_input: String,
+    url_input: String,
+}
 
 impl eframe::App for App{
     fn update(
@@ -10,7 +14,42 @@ impl eframe::App for App{
             _frame: &mut eframe::Frame,
     ) {
         set_styles(ctx);
-        TopBottomPanel::top("menu_bar").show(ctx, |ui|{
+        show_top_bar(ctx);     
+        CentralPanel::default().show(ctx, |ui|{
+            ui.collapsing("New RSS", |ui|{
+                ui.vertical_centered_justified(|ui|{
+                    ui.label("Name");
+                    ui.text_edit_singleline(&mut self.name_input);
+                    ui.label("RSS URL");
+                    ui.text_edit_singleline(&mut self.url_input);
+                    ui.horizontal(|ui|{
+                        if ui.button("Submit").clicked(){
+                            self.subs.push((
+                                self.name_input.clone(),
+                                self.url_input.clone(), 
+                            ));
+                            self.name_input.clear();
+                            self.url_input.clear();
+                        }
+                        if ui.button("Clear").clicked(){
+                            self.name_input.clear();
+                            self.url_input.clear();
+                        }
+                    });
+                });
+            });
+
+            for sub in &self.subs{
+                ui.heading(&sub.0);
+                ui.heading(&sub.1);
+            }
+        });
+        
+    }
+}
+
+fn show_top_bar(ctx: &Context) {
+    TopBottomPanel::top("menu_bar").show(ctx, |ui|{
                 egui::menu::bar(ui, |ui|{
                     ui.menu_button("File", |ui|{
                         if ui.button("Exit").clicked(){
@@ -19,10 +58,6 @@ impl eframe::App for App{
                     });
                 });
             }); 
-        CentralPanel::default().show(ctx, |ui|{
-            ui.heading("Hello World")
-        });
-    }
 }
 
 
